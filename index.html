@@ -201,7 +201,7 @@
                         <th width="25%">ชื่อระบบ (Application)</th>
                         <th width="30%">URL เป้าหมาย</th>
                         <th width="15%" style="text-align: center;">สถานะการเปิดลิ้งก์</th>
-                        <th width="25%">ข้อสังเกตเพิ่มเติม</th>
+                        <th width="25%">สถานะ / สาเหตุที่เปิดไม่ได้</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -212,8 +212,8 @@
     </div>
     
     <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; padding-bottom: 40px;">
-        หมายเหตุ: การตรวจสอบนี้ใช้เทคนิค No-CORS ยิงข้อมูลจำลองการเปิดเว็บจากเครื่องของคุณโดยตรง (เหมาะสำหรับการมุด VPN)<br>
-        หากระบบแสดง Error แสดงว่าเครือข่ายของคุณ (หรือ VPN) ไม่สามารถโหลดหน้านั้นได้ หรือโดเมนนั้น/เซิร์ฟเวอร์ปลายทางมีปัญหา
+        หมายเหตุ: การตรวจสอบนี้ใช้เทคนิคยิงข้อมูลจำลองการเปิดเว็บจากเครื่องของคุณโดยตรง (เหมาะสำหรับการมุด VPN)<br>
+        หากระบบแสดง Error แสดงว่าเครือข่ายของคุณ (หรือ VPN) ไม่สามารถโหลดหน้านั้นได้ หรือเซิร์ฟเวอร์ปลายทางมีปัญหา
     </div>
 </div>
 
@@ -441,22 +441,56 @@
         globalSignal.addEventListener('abort', onGlobalAbort);
 
         try {
-            // ใช้เทคนิค Direct No-CORS (มุด VPN ได้)
-            await fetch(url, { 
-                mode: 'no-cors', 
+            // ขั้นที่ 1: ลองยิงแบบปกติ (ดึง HTTP Code 404, 500)
+            const response = await fetch(url, { 
+                method: 'GET',
                 cache: 'no-store',
                 signal: localController.signal 
             });
             
             clearTimeout(timeoutId);
             globalSignal.removeEventListener('abort', onGlobalAbort);
-            return { status: 'reachable', time: Date.now() - start };
+            
+            if (response.ok || (response.status >= 200 && response.status < 400)) {
+                return { status: 'reachable', code: response.status, time: Date.now() - start, detail: `หน้าต่างระบบโหลดสำเร็จ (HTTP ${response.status})` };
+            } else {
+                // เซิร์ฟเวอร์ตอบกลับแต่เป็น Error เช่น 404, 500
+                return { status: 'unreachable', code: response.status, time: Date.now() - start, detail: `ERR ${response.status} (${response.statusText || 'HTTP Error'})` };
+            }
 
         } catch (error) {
-            clearTimeout(timeoutId);
-            globalSignal.removeEventListener('abort', onGlobalAbort);
-            if (globalSignal.aborted) return null; // Aborted by user
-            return { status: 'unreachable', time: Date.now() - start };
+            // ถ้า Error เป็น Abort แสดงว่าหมดเวลา (Timeout)
+            if (error.name === 'AbortError') {
+                clearTimeout(timeoutId);
+                globalSignal.removeEventListener('abort', onGlobalAbort);
+                if (globalSignal.aborted) return null; // ผู้ใช้กดปุ่มหยุดตรวจสอบ
+                return { status: 'unreachable', code: 'TIMEOUT', time: Date.now() - start, detail: 'ERR_CONNECTION_TIMED_OUT' };
+            }
+
+            // ขั้นที่ 2: ถ้ายิงแบบปกติพัง (อาจจะติด CORS หรือพังจริงๆ) ให้ลองยิงแบบ no-cors 
+            try {
+                await fetch(url, { 
+                    mode: 'no-cors', 
+                    cache: 'no-store',
+                    signal: localController.signal 
+                });
+                
+                clearTimeout(timeoutId);
+                globalSignal.removeEventListener('abort', onGlobalAbort);
+                return { status: 'reachable', code: 'OPAQUE', time: Date.now() - start, detail: 'หน้าต่างระบบโหลดสำเร็จ (จำกัดการอ่านค่าสถานะ)' };
+
+            } catch (noCorsError) {
+                clearTimeout(timeoutId);
+                globalSignal.removeEventListener('abort', onGlobalAbort);
+                if (globalSignal.aborted) return null;
+                
+                if (noCorsError.name === 'AbortError') {
+                    return { status: 'unreachable', code: 'TIMEOUT', time: Date.now() - start, detail: 'ERR_CONNECTION_TIMED_OUT' };
+                }
+                
+                // ถ้ายิงแบบ no-cors ก็พัง แสดงว่าตายจริง (เช่น ปิดเซิร์ฟเวอร์, ชื่อโดเมนผิด)
+                return { status: 'unreachable', code: 'NETWORK_ERR', time: Date.now() - start, detail: 'ERR_CONNECTION_REFUSED / ERR_NAME_NOT_RESOLVED' };
+            }
         }
     }
 
@@ -466,12 +500,24 @@
 
         if (result.status === 'reachable') {
             statusTd.innerHTML = `<span class="badge badge-green">✅ เปิดได้ปกติ</span>`;
-            let detailHtml = `<div class="text-sm">หน้าต่างระบบโหลดสำเร็จ (เครือข่ายเข้าถึงได้)</div>`;
+            let detailHtml = `<div class="text-sm text-green-700 font-medium">${result.detail}</div>`;
             detailHtml += `<div class="text-sm text-gray mt-1">⏱️ ${result.time} ms</div>`;
             detailTd.innerHTML = detailHtml;
         } else {
             statusTd.innerHTML = `<span class="badge badge-red">❌ เปิดไม่ได้ / Error</span>`;
-            let detailHtml = `<div class="text-sm">โหลดหน้าเว็บไม่สำเร็จ (เซิร์ฟเวอร์ตาย หรือเครือข่ายล่ม)</div>`;
+            
+            // ปรับสีและคำอธิบายเพิ่มเติมตามชนิดของ Error
+            let detailHtml = `<div class="text-sm font-bold" style="color: #dc2626; font-family: monospace; font-size: 13px;">${result.detail}</div>`;
+            
+            if (result.code === 'TIMEOUT') {
+                detailHtml += `<div class="text-sm text-gray mt-1">เซิร์ฟเวอร์ไม่ตอบสนองภายใน 15 วินาที</div>`;
+            } else if (result.code === 'NETWORK_ERR') {
+                detailHtml += `<div class="text-sm text-gray mt-1">เครือข่ายบล็อกการเชื่อมต่อ หรือไม่พบโดเมน</div>`;
+            } else if (typeof result.code === 'number') {
+                // กรณีที่เป็น Error Code 404, 500, ฯลฯ
+                detailHtml += `<div class="text-sm text-gray mt-1">เซิร์ฟเวอร์ตอบกลับมาด้วยสถานะความผิดปกติ</div>`;
+            }
+            
             detailHtml += `<div class="text-sm text-gray mt-1">⏱️ ${result.time} ms</div>`;
             detailTd.innerHTML = detailHtml;
         }
