@@ -3,456 +3,577 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NACC System Status Checker</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>NACC System Status Checker (Proxy Version)</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
-        .spinner { animation: spin 1s linear infinite; }
+        
+        /* Fallback fonts if Google Fonts cannot load (Offline Mode) */
+        body { 
+            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f3f4f6; 
+            color: #1f2937;
+            margin: 0; 
+            padding: 20px; 
+            line-height: 1.5;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .box { 
+            background: #fff; 
+            border-radius: 12px; 
+            padding: 24px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            margin-bottom: 24px; 
+            border: 1px solid #e5e7eb; 
+        }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        
+        h1 { margin: 0; font-size: 24px; color: #1f2937; display: flex; align-items: center; gap: 10px; }
+        p.subtitle { color: #6b7280; margin: 5px 0 0 0; font-size: 14px; }
+        
+        button { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-family: inherit; 
+            font-size: 15px; 
+            font-weight: 600; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            transition: all 0.2s; 
+        }
+        .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 2px 4px rgba(37,99,235,0.2); }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .btn-secondary:hover { background: #e5e7eb; }
+        .btn-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .btn-success:hover { background: #bbf7d0; }
+
+        /* Progress Bar */
+        .progress-container { margin-top: 24px; display: none; }
+        .progress-header { display: flex; justify-content: space-between; font-size: 14px; color: #4b5563; font-weight: 500; margin-bottom: 8px; }
+        .progress-bar { height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2563eb; width: 0%; transition: width 0.3s ease; }
+
+        /* Stats Grid */
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 16px; 
+            margin-top: 24px; 
+            border-top: 1px solid #e5e7eb; 
+            padding-top: 24px; 
+        }
+        .stat-card { padding: 16px; border-radius: 10px; text-align: center; border: 1px solid #e5e7eb; }
+        .stat-card.gray { background: #f9fafb; }
+        .stat-card.green { background: #f0fdf4; border-color: #dcfce7; }
+        .stat-card.red { background: #fef2f2; border-color: #fee2e2; }
+        .stat-card h4 { margin: 0 0 8px 0; font-size: 14px; font-weight: 500; }
+        .stat-card .value { font-size: 28px; font-weight: 700; }
+        .gray h4 { color: #6b7280; } .gray .value { color: #1f2937; }
+        .green h4 { color: #16a34a; } .green .value { color: #15803d; }
+        .red h4 { color: #dc2626; } .red .value { color: #b91c1c; }
+
+        /* Table */
+        .table-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 10px; }
+        .table-header h2 { margin: 0; font-size: 18px; color: #374151; }
+        input[type="text"] { 
+            padding: 10px 16px; 
+            border: 1px solid #d1d5db; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            font-family: inherit;
+            width: 250px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+        
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 14px 16px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+        th { background: #f9fafb; color: #4b5563; font-weight: 600; text-transform: uppercase; font-size: 12px; }
+        tr:hover { background: #f9fafb; }
+        a { color: #2563eb; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        
+        .badge { padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+        .badge-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .badge-yellow { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+        .badge-gray { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+        .badge-blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        
+        .text-sm { font-size: 12px; }
+        .text-gray { color: #6b7280; }
+        .text-muted { color: #9ca3af; }
+        .mt-1 { margin-top: 4px; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-content { background: #fff; border-radius: 12px; width: 100%; max-width: 650px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-header { padding: 16px 24px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 18px; color: #1f2937; }
+        .close-btn { background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; padding: 0; }
+        .close-btn:hover { color: #ef4444; }
+        .modal-body { padding: 24px; }
+        textarea { 
+            width: 100%; 
+            height: 220px; 
+            padding: 16px; 
+            font-family: monospace; 
+            border: 1px solid #d1d5db; 
+            border-radius: 8px; 
+            background: #f9fafb; 
+            font-size: 14px; 
+            resize: none; 
+            box-sizing: border-box;
+            outline: none;
+        }
+        textarea:focus { border-color: #2563eb; }
+        .modal-footer { padding: 16px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; }
+        
+        .spin { display: inline-block; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        // Data extracted from the provided HTML
-        const rawLinks = [
-            { id: 'frm-0', name: 'Portal CCMS', url: 'https://portalccms.nacc.go.th/login?portal=1' },
-            { id: 'frm-1', name: 'ACAS', url: 'https://ais.nacc.go.th/ais-app/login.jsf' },
-            { id: 'frm-2', name: 'ACAS2', url: 'https://ais2.nacc.go.th/portal' },
-            { id: 'frm-3', name: 'ODS', url: 'https://asset.nacc.go.th/ods-app/' },
-            { id: 'frm-4', name: 'ระบบเปิดเผยบัญชีฯ (DCS)', url: 'https://dcs.nacc.go.th/login?portal=1' },
-            { id: 'frm-5', name: 'ระบบบริหารการประชุม (MMS)', url: 'https://mms.nacc.go.th/portalLogin' },
-            { id: 'frm-6', name: 'พิมพ์เอกสารงานปราบปราม', url: 'https://cis.nacc.go.th/factsreport/login_check.php' },
-            { id: 'frm-7', name: 'ระบบแสดงผลงานด้านการไต่สวนข้อเท็จจริง', url: 'https://permission.nacc.go.th/investigate' },
-            { id: 'frm-8', name: 'ระบบเชื่อมโยงประกันสังคม', url: 'https://sso.nacc.go.th/portal' },
-            { id: 'frm-9', name: 'ระบบสืบค้นข้อมูลนิติบุคคล', url: 'https://dbdws.nacc.go.th/portallogin' },
-            { id: 'frm-10', name: 'ระบบสืบค้นข้อมูลธนาคารแห่งประเทศไทย', url: 'https://naccbot.nacc.go.th/nacc_bot/Control/authen_login.php' },
-            { id: 'frm-11', name: 'FinApp', url: 'https://finapp.nacc.go.th/nacc' },
-            { id: 'frm-12', name: 'สลิปเงินเดือน / หนังสือรับรองการหักภาษี ณ ที่จ่าย', url: 'https://finapp3.nacc.go.th:9000/nacc/fin/fin01914.jsp?emp_id=013976' },
-            { id: 'frm-13', name: 'E-Office', url: 'https://eoffice.nacc.go.th/login?portal=1' },
-            { id: 'frm-14', name: 'HRMAS', url: 'https://hrmas.nacc.go.th:7013/hrmas-intra/sso-login.jsf' },
-            { id: 'frm-15', name: 'HRMAS2', url: 'https://hrmas2.nacc.go.th/portalLogin' },
-            { id: 'frm-16', name: 'SAR', url: 'https://sar.nacc.go.th/portal' },
-            { id: 'frm-17', name: 'Admin เว็บไซต์อินทราเน็ต', url: 'https://portal.nacc.go.th/dashboard' },
-            { id: 'frm-18', name: 'Admin เว็บไซต์อินเทอร์เน็ต', url: 'https://www.nacc.go.th/user/login' },
-            { id: 'frm-19', name: 'Smart-eVision', url: 'https://acic.nacc.go.th/nacc/' },
-            { id: 'frm-20', name: 'ระบบฐานข้อมูลยานพาหนะ สำนักงาน ป.ป.ช.', url: 'https://cf.nacc.go.th/car_license2' },
-            { id: 'frm-21', name: 'Helpdesk', url: 'https://helpdesk.nacc.go.th/login' },
-            { id: 'frm-22', name: 'Maintenance', url: 'https://maintenance.nacc.go.th/login' },
-            { id: 'frm-23', name: 'Permission', url: 'https://permission.nacc.go.th/Permission/Control/authen_login.php' },
-            { id: 'frm-24', name: 'e-Learning', url: 'https://aced.nacc.go.th/LSDI/' },
-            { id: 'frm-25', name: 'Knowledge Management', url: 'https://www.nacc.go.th/NACCKM' },
-            { id: 'frm-26', name: 'เปลี่ยนรหัสผ่าน IDM', url: 'https://idm.nacc.go.th/accounts/login/' },
-            { id: 'frm-27', name: 'NACC Mail', url: 'https://webmail.nacc.go.th/' },
-            { id: 'frm-28', name: 'ระบบบริหารจัดการทรัพย์สิน (AMS)', url: 'https://ams.nacc.go.th/portallogin' },
-            { id: 'frm-29', name: 'ระบบการจัดทำต้นทุนผลผลิต', url: 'https://ucs.nacc.go.th/portallogin' },
-            { id: 'frm-30', name: 'Smart NACC Web', url: 'https://smart.nacc.go.th/login' },
-            { id: 'frm-31', name: 'Smart NACC Mobile', url: 'https://smart.nacc.go.th/qrcode' },
-            { id: 'frm-32', name: 'ระบบเปิดเผยผลการตรวจสอบทรัพย์สินและหนี้สิน', url: 'https://asset_reveal.nacc.go.th/' },
-            { id: 'frm-33', name: 'ระบบบริหารจัดการภารกิจภายในสำนักกฎหมาย', url: 'https://tms.nacc.go.th/login' },
-            { id: 'frm-34', name: 'ระบบขอใช้รถส่วนกลาง', url: 'https://vdwss.nacc.go.th/portallogin' },
-            { id: 'frm-35', name: 'ระบบรายงานการติดตาม และประเมินผลมาตรการฯ (RMES)', url: 'https://rmes.nacc.go.th/portallogin' },
-            { id: 'frm-36', name: 'ระบบขยายระยะเวลาตรวจสอบทรัพย์สิน', url: 'https://etcasset.nacc.go.th/checklogin' },
-            { id: 'frm-37', name: 'CDS', url: 'https://cds.nacc.go.th/portallogin' },
-            { id: 'frm-38', name: 'ระบบจองห้องประชุม', url: 'https://meetingroom.nacc.go.th/checkLoginPortal' },
-            { id: 'frm-39', name: 'ระบบบันทึกเรื่องไต่สวนที่ไม่มีมูล', url: 'https://incul.nacc.go.th/incul_admin/' },
-            { id: 'frm-40', name: 'ติดตามการก่อสร้าง (CTS)', url: 'https://cts.nacc.go.th/actionlogin?portal=1' },
-            { id: 'frm-41', name: 'PSI : ระบบส่งผลงาน', url: 'https://psi.nacc.go.th/portallogin' },
-            { id: 'frm-42', name: 'PSG : ระบบส่งผลงาน (ตำแหน่งทั่วไป)', url: 'https://psg.nacc.go.th/portallogin' },
-            { id: 'frm-43', name: 'MREP', url: 'https://mrep.nacc.go.th/login?portal=1' },
-            { id: 'frm-44', name: 'ระบบสืบค้นมติคณะกรรมการ ป.ป.ช. และคำพิพากษา', url: 'https://rrs.nacc.go.th/login?portal=1' },
-            { id: 'frm-45', name: 'SQS', url: 'https://externalws.nacc.go.th:5000/' },
-            { id: 'frm-46', name: 'ACASN: จัดชุดออกเลขแดง', url: 'https://acasn.nacc.go.th/checklogin' },
-            { id: 'frm-47', name: 'ระบบบริหารจัดการผู้แจ้งเบาะแส', url: 'https://wms.nacc.go.th/portal' },
-            { id: 'frm-48', name: 'ระบบรายงานผลตรวจรับพัสดุ', url: 'https://sers.nacc.go.th/checkLoginPortal' },
-            { id: 'frm-49', name: 'ระบบรายงานมาตรการประหยัดพลังงาน', url: 'https://esis.nacc.go.th' },
-            { id: 'frm-50', name: 'ระบบเบิกจ่ายค่าเช่าบ้าน : DORH', url: 'https://dorh.nacc.go.th/checkLoginPortal' },
-            { id: 'frm-51', name: 'ระบบ ECM และ KDS', url: 'https://ecm.nacc.go.th/portal' },
-            { id: 'frm-52', name: 'APS: ระบบบันทึกการนัดหมาย', url: 'https://aps.nacc.go.th/' },
-            { id: 'frm-53', name: 'ระบบ ODRS', url: 'https://odrs.nacc.go.th/login?portal=1' },
-            { id: 'frm-54', name: 'ระบบบริหารจัดการวัสดุภายในสำนัก (SMS)', url: 'https://itstock.nacc.go.th/login' },
-            { id: 'frm-55', name: 'ระบบบริหารงานพัสดุไปรษณีย์ (PMS)', url: 'https://pms.nacc.go.th/login?portal=1' },
-            { id: 'frm-56', name: 'ระบบสมุดตรวจราชการ (CSIB)', url: 'https://csib.nacc.go.th' },
-            { id: 'frm-57', name: 'ระบบถาม - ตอบ (Q & A System)', url: 'https://qamng.nacc.go.th/' },
-            { id: 'frm-58', name: 'HRDIS2 (ส่วน IDP)', url: 'https://hrdis2.nacc.go.th/' },
-            { id: 'frm-59', name: 'ระบบจองห้องประชุม Webex', url: 'https://webexbooking.nacc.go.th/NaccWebex/login.xhtml' },
-            { id: 'frm-60', name: 'Social Credit', url: 'https://social-credit.nacc.go.th/portal' },
-            { id: 'frm-61', name: 'NACC Maps', url: 'https://gis.nacc.go.th/portal/apps/experiencebuilder/experience/?csrt=17684589547006525433&id=6cf13712ef884e1bbafd3ebb48bc32b8' },
-            { id: 'frm-62', name: 'Tool Support System', url: 'https://tool.nacc.go.th' },
-            { id: 'frm-63', name: 'ICCMS', url: 'https://iccms.nacc.go.th/portal' }
-        ];
+<div class="container">
+    <!-- Header Box -->
+    <div class="box">
+        <div class="flex-between">
+            <div>
+                <h1>⚡ NACC Link Access Checker (Proxy Version)</h1>
+                <p class="subtitle">ระบบตรวจสอบสถานะการเปิดลิ้งก์แอปพลิเคชัน 64 ระบบ (หลีกเลี่ยงข้อจำกัด Portal โดยใช้ Proxy ตัวกลาง)</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-secondary" onclick="openModal()">
+                    📋 พิมพ์รายงาน
+                </button>
+                <button id="btnCheckAll" class="btn-primary" onclick="toggleCheckAll()">
+                    ▶️ ตรวจสอบการเปิดหน้าเว็บทั้งหมด
+                </button>
+            </div>
+        </div>
 
-        const { useState, useEffect, useRef } = React;
+        <!-- Progress Section -->
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-header">
+                <span id="progressText">กำลังโหลดหน้าเว็บเพื่อตรวจสอบ...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+        </div>
 
-        const App = () => {
-            const [links, setLinks] = useState(rawLinks.map(link => ({ ...link, status: 'idle', data: null })));
-            const [isChecking, setIsChecking] = useState(false);
-            const [progress, setProgress] = useState(0);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [showReport, setShowReport] = useState(false);
-            const [copySuccess, setCopySuccess] = useState(false);
-            const abortControllerRef = useRef(null);
+        <!-- Stats Section -->
+        <div class="stats-grid">
+            <div class="stat-card gray">
+                <h4>ระบบทั้งหมด</h4>
+                <div class="value" id="statTotal">64</div>
+            </div>
+            <div class="stat-card green">
+                <h4>เปิดได้ (ออนไลน์)</h4>
+                <div class="value" id="statOnline">0</div>
+            </div>
+            <div class="stat-card red">
+                <h4>มีปัญหา (Error)</h4>
+                <div class="value" id="statError">0</div>
+            </div>
+        </div>
+    </div>
 
-            const getThaiDate = () => {
-                const date = new Date();
-                const months = [
-                    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-                    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-                ];
-                return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear() + 543}`;
-            };
+    <!-- Table Box -->
+    <div class="box">
+        <div class="table-header">
+            <h2>รายการแอปพลิเคชัน (<span id="appCount">64</span>)</h2>
+            <input type="text" id="searchInput" placeholder="🔍 ค้นหาระบบ หรือ URL..." onkeyup="filterTable()">
+        </div>
+        <div class="table-responsive">
+            <table id="linksTable">
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="25%">ชื่อระบบ (Application)</th>
+                        <th width="30%">URL เป้าหมาย</th>
+                        <th width="15%" style="text-align: center;">สถานะการเปิดลิ้งก์</th>
+                        <th width="25%">ข้อสังเกตเพิ่มเติม</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Rows will be injected by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; padding-bottom: 40px;">
+        หมายเหตุ: การตรวจสอบนี้ใช้บริการ CORS Proxy (api.allorigins.win) เพื่อดึง HTTP Status Code จากเซิร์ฟเวอร์<br>
+        ระบบจะอ่านค่าสถานะ เช่น ติดหน้า Login (200, 301, 302, 401, 403) จะถือว่า "ระบบทำงานปกติ"<br>
+        และจะแสดง Error เฉพาะเมื่อเกิดข้อผิดพลาดรุนแรงฝั่งเซิร์ฟเวอร์ (500+) หรือเชื่อมต่อไม่ได้เท่านั้น
+    </div>
+</div>
 
-            const analyzeStatus = (status, timeTaken) => {
-                let badge = 'bg-gray-100 text-gray-800';
-                let icon = 'fa-circle-question';
-                let text = 'Unknown';
-                let detail = '';
+<!-- Modal Report -->
+<div id="reportModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📋 รูปแบบข้อความรายงาน</h3>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <textarea id="reportText" readonly></textarea>
+        </div>
+        <div class="modal-footer">
+            <button id="btnCopy" class="btn-primary" onclick="copyReport()">
+                📄 คัดลอกข้อความ
+            </button>
+            <button class="btn-secondary" onclick="closeModal()">
+                ปิดหน้าต่าง
+            </button>
+        </div>
+    </div>
+</div>
 
-                if (status === 'reachable') {
-                    badge = 'bg-green-100 text-green-800 border-green-200';
-                    icon = 'fa-globe text-green-500';
-                    text = 'เปิดได้ปกติ';
-                    detail = '✅ หน้าต่างระบบโหลดสำเร็จ (เครือข่ายเข้าถึงได้)';
-                } else {
-                    badge = 'bg-red-100 text-red-800 border-red-200';
-                    icon = 'fa-triangle-exclamation text-red-500';
-                    text = 'เปิดไม่ได้ / Error';
-                    detail = '❌ โหลดหน้าเว็บไม่สำเร็จ (เซิร์ฟเวอร์ตาย หรือเครือข่ายล่ม)';
-                }
+<script>
+    // Data List
+    const linksData = [
+        { id: 'frm-0', name: 'Portal CCMS', url: 'https://portalccms.nacc.go.th/login?portal=1' },
+        { id: 'frm-1', name: 'ACAS', url: 'https://ais.nacc.go.th/ais-app/login.jsf' },
+        { id: 'frm-2', name: 'ACAS2', url: 'https://ais2.nacc.go.th/portal' },
+        { id: 'frm-3', name: 'ODS', url: 'https://asset.nacc.go.th/ods-app/' },
+        { id: 'frm-4', name: 'ระบบเปิดเผยบัญชีฯ (DCS)', url: 'https://dcs.nacc.go.th/login?portal=1' },
+        { id: 'frm-5', name: 'ระบบบริหารการประชุม (MMS)', url: 'https://mms.nacc.go.th/portalLogin' },
+        { id: 'frm-6', name: 'พิมพ์เอกสารงานปราบปราม', url: 'https://cis.nacc.go.th/factsreport/login_check.php' },
+        { id: 'frm-7', name: 'ระบบแสดงผลงานด้านการไต่สวนข้อเท็จจริง', url: 'https://permission.nacc.go.th/investigate' },
+        { id: 'frm-8', name: 'ระบบเชื่อมโยงประกันสังคม', url: 'https://sso.nacc.go.th/portal' },
+        { id: 'frm-9', name: 'ระบบสืบค้นข้อมูลนิติบุคคล', url: 'https://dbdws.nacc.go.th/portallogin' },
+        { id: 'frm-10', name: 'ระบบสืบค้นข้อมูลธนาคารแห่งประเทศไทย', url: 'https://naccbot.nacc.go.th/nacc_bot/Control/authen_login.php' },
+        { id: 'frm-11', name: 'FinApp', url: 'https://finapp.nacc.go.th/nacc' },
+        { id: 'frm-12', name: 'สลิปเงินเดือน / หนังสือรับรองการหักภาษี ณ ที่จ่าย', url: 'https://finapp3.nacc.go.th:9000/nacc/fin/fin01914.jsp?emp_id=013976' },
+        { id: 'frm-13', name: 'E-Office', url: 'https://eoffice.nacc.go.th/login?portal=1' },
+        { id: 'frm-14', name: 'HRMAS', url: 'https://hrmas.nacc.go.th:7013/hrmas-intra/sso-login.jsf' },
+        { id: 'frm-15', name: 'HRMAS2', url: 'https://hrmas2.nacc.go.th/portalLogin' },
+        { id: 'frm-16', name: 'SAR', url: 'https://sar.nacc.go.th/portal' },
+        { id: 'frm-17', name: 'Admin เว็บไซต์อินทราเน็ต', url: 'https://portal.nacc.go.th/dashboard' },
+        { id: 'frm-18', name: 'Admin เว็บไซต์อินเทอร์เน็ต', url: 'https://www.nacc.go.th/user/login' },
+        { id: 'frm-19', name: 'Smart-eVision', url: 'https://acic.nacc.go.th/nacc/' },
+        { id: 'frm-20', name: 'ระบบฐานข้อมูลยานพาหนะ สำนักงาน ป.ป.ช.', url: 'https://cf.nacc.go.th/car_license2' },
+        { id: 'frm-21', name: 'Helpdesk', url: 'https://helpdesk.nacc.go.th/login' },
+        { id: 'frm-22', name: 'Maintenance', url: 'https://maintenance.nacc.go.th/login' },
+        { id: 'frm-23', name: 'Permission', url: 'https://permission.nacc.go.th/Permission/Control/authen_login.php' },
+        { id: 'frm-24', name: 'e-Learning', url: 'https://aced.nacc.go.th/LSDI/' },
+        { id: 'frm-25', name: 'Knowledge Management', url: 'https://www.nacc.go.th/NACCKM' },
+        { id: 'frm-26', name: 'เปลี่ยนรหัสผ่าน IDM', url: 'https://idm.nacc.go.th/accounts/login/' },
+        { id: 'frm-27', name: 'NACC Mail', url: 'https://webmail.nacc.go.th/' },
+        { id: 'frm-28', name: 'ระบบบริหารจัดการทรัพย์สิน (AMS)', url: 'https://ams.nacc.go.th/portallogin' },
+        { id: 'frm-29', name: 'ระบบการจัดทำต้นทุนผลผลิต', url: 'https://ucs.nacc.go.th/portallogin' },
+        { id: 'frm-30', name: 'Smart NACC Web', url: 'https://smart.nacc.go.th/login' },
+        { id: 'frm-31', name: 'Smart NACC Mobile', url: 'https://smart.nacc.go.th/qrcode' },
+        { id: 'frm-32', name: 'ระบบเปิดเผยผลการตรวจสอบทรัพย์สินและหนี้สิน', url: 'https://asset_reveal.nacc.go.th/' },
+        { id: 'frm-33', name: 'ระบบบริหารจัดการภารกิจภายในสำนักกฎหมาย', url: 'https://tms.nacc.go.th/login' },
+        { id: 'frm-34', name: 'ระบบขอใช้รถส่วนกลาง', url: 'https://vdwss.nacc.go.th/portallogin' },
+        { id: 'frm-35', name: 'ระบบรายงานการติดตาม และประเมินผลมาตรการฯ (RMES)', url: 'https://rmes.nacc.go.th/portallogin' },
+        { id: 'frm-36', name: 'ระบบขยายระยะเวลาตรวจสอบทรัพย์สิน', url: 'https://etcasset.nacc.go.th/checklogin' },
+        { id: 'frm-37', name: 'CDS', url: 'https://cds.nacc.go.th/portallogin' },
+        { id: 'frm-38', name: 'ระบบจองห้องประชุม', url: 'https://meetingroom.nacc.go.th/checkLoginPortal' },
+        { id: 'frm-39', name: 'ระบบบันทึกเรื่องไต่สวนที่ไม่มีมูล', url: 'https://incul.nacc.go.th/incul_admin/' },
+        { id: 'frm-40', name: 'ติดตามการก่อสร้าง (CTS)', url: 'https://cts.nacc.go.th/actionlogin?portal=1' },
+        { id: 'frm-41', name: 'PSI : ระบบส่งผลงาน', url: 'https://psi.nacc.go.th/portallogin' },
+        { id: 'frm-42', name: 'PSG : ระบบส่งผลงาน (ตำแหน่งทั่วไป)', url: 'https://psg.nacc.go.th/portallogin' },
+        { id: 'frm-43', name: 'MREP', url: 'https://mrep.nacc.go.th/login?portal=1' },
+        { id: 'frm-44', name: 'ระบบสืบค้นมติคณะกรรมการ ป.ป.ช. และคำพิพากษา', url: 'https://rrs.nacc.go.th/login?portal=1' },
+        { id: 'frm-45', name: 'SQS', url: 'https://externalws.nacc.go.th:5000/' },
+        { id: 'frm-46', name: 'ACASN: จัดชุดออกเลขแดง', url: 'https://acasn.nacc.go.th/checklogin' },
+        { id: 'frm-47', name: 'ระบบบริหารจัดการผู้แจ้งเบาะแส', url: 'https://wms.nacc.go.th/portal' },
+        { id: 'frm-48', name: 'ระบบรายงานผลตรวจรับพัสดุ', url: 'https://sers.nacc.go.th/checkLoginPortal' },
+        { id: 'frm-49', name: 'ระบบรายงานมาตรการประหยัดพลังงาน', url: 'https://esis.nacc.go.th' },
+        { id: 'frm-50', name: 'ระบบเบิกจ่ายค่าเช่าบ้าน : DORH', url: 'https://dorh.nacc.go.th/checkLoginPortal' },
+        { id: 'frm-51', name: 'ระบบ ECM และ KDS', url: 'https://ecm.nacc.go.th/portal' },
+        { id: 'frm-52', name: 'APS: ระบบบันทึกการนัดหมาย', url: 'https://aps.nacc.go.th/' },
+        { id: 'frm-53', name: 'ระบบ ODRS', url: 'https://odrs.nacc.go.th/login?portal=1' },
+        { id: 'frm-54', name: 'ระบบบริหารจัดการวัสดุภายในสำนัก (SMS)', url: 'https://itstock.nacc.go.th/login' },
+        { id: 'frm-55', name: 'ระบบบริหารงานพัสดุไปรษณีย์ (PMS)', url: 'https://pms.nacc.go.th/login?portal=1' },
+        { id: 'frm-56', name: 'ระบบสมุดตรวจราชการ (CSIB)', url: 'https://csib.nacc.go.th' },
+        { id: 'frm-57', name: 'ระบบถาม - ตอบ (Q & A System)', url: 'https://qamng.nacc.go.th/' },
+        { id: 'frm-58', name: 'HRDIS2 (ส่วน IDP)', url: 'https://hrdis2.nacc.go.th/' },
+        { id: 'frm-59', name: 'ระบบจองห้องประชุม Webex', url: 'https://webexbooking.nacc.go.th/NaccWebex/login.xhtml' },
+        { id: 'frm-60', name: 'Social Credit', url: 'https://social-credit.nacc.go.th/portal' },
+        { id: 'frm-61', name: 'NACC Maps', url: 'https://gis.nacc.go.th/portal/apps/experiencebuilder/experience/?csrt=17684589547006525433&id=6cf13712ef884e1bbafd3ebb48bc32b8' },
+        { id: 'frm-62', name: 'Tool Support System', url: 'https://tool.nacc.go.th' },
+        { id: 'frm-63', name: 'ICCMS', url: 'https://iccms.nacc.go.th/portal' }
+    ];
 
-                if (timeTaken > 10000 && status === 'reachable') {
-                     detail += ' (⚠️ ใช้เวลาโหลดนานมาก)';
-                }
+    // State
+    let isChecking = false;
+    let globalAbortController = null;
+    let stats = { total: linksData.length, online: 0, error: 0 };
+    let resultsMap = {}; // store result by index
 
-                return { badge, icon, text, detail };
-            };
+    // Init App
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('statTotal').innerText = stats.total;
+        renderInitialTable();
+    });
 
-            const checkSingleLink = async (url, globalSignal) => {
-                const startTime = Date.now();
-                // จับเวลา Timeout สูงสุด 15 วินาทีต่อ 1 ลิ้งก์
-                const localController = new AbortController();
-                const timeoutId = setTimeout(() => localController.abort(), 15000);
+    function renderInitialTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        
+        linksData.forEach((link, idx) => {
+            const tr = document.createElement('tr');
+            tr.id = `row-${idx}`;
+            
+            // Clean URL for display
+            let displayUrl = link.url.replace('https://', '').replace('http://', '');
+            if(displayUrl.length > 40) displayUrl = displayUrl.substring(0, 40) + '...';
+
+            tr.innerHTML = `
+                <td class="text-muted">${idx + 1}</td>
+                <td style="font-weight: 500; color: #1f2937;">${link.name}</td>
+                <td><a href="${link.url}" target="_blank" title="${link.url}">${displayUrl}</a></td>
+                <td style="text-align: center;" id="status-${idx}">
+                    <span class="text-muted">-</span>
+                </td>
+                <td id="detail-${idx}">
+                    <span class="text-muted">-</span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterTable() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        let visibleCount = 0;
+        
+        linksData.forEach((link, idx) => {
+            const tr = document.getElementById(`row-${idx}`);
+            if (!tr) return;
+            
+            if (link.name.toLowerCase().includes(term) || link.url.toLowerCase().includes(term)) {
+                tr.style.display = '';
+                visibleCount++;
+            } else {
+                tr.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('appCount').innerText = visibleCount;
+    }
+
+    async function toggleCheckAll() {
+        if (isChecking) {
+            // Stop process
+            if (globalAbortController) {
+                globalAbortController.abort();
+            }
+            stopCheckingUI();
+            return;
+        }
+
+        // Start process
+        startCheckingUI();
+        globalAbortController = new AbortController();
+        const signal = globalAbortController.signal;
+
+        // Reset stats
+        stats.online = 0;
+        stats.error = 0;
+        resultsMap = {};
+        updateStatsUI();
+
+        // Reset Table Status UI
+        linksData.forEach((_, idx) => {
+            document.getElementById(`status-${idx}`).innerHTML = `<span class="text-muted">⏳ รอคิว</span>`;
+            document.getElementById(`detail-${idx}`).innerHTML = `<span class="text-muted">-</span>`;
+        });
+
+        let completedCount = 0;
+        const batchSize = 5; // เช็คทีละ 5 ลิ้งก์เพื่อไม่ให้โหลดหนักเกินไป
+
+        for (let i = 0; i < linksData.length; i += batchSize) {
+            if (signal.aborted) break;
+
+            const batch = linksData.slice(i, i + batchSize);
+            const promises = batch.map(async (link, batchIdx) => {
+                const actualIdx = i + batchIdx;
                 
-                const abortHandler = () => localController.abort();
-                globalSignal.addEventListener('abort', abortHandler);
+                // Set to checking
+                document.getElementById(`status-${actualIdx}`).innerHTML = `<span class="badge badge-blue"><span class="spin">⚙️</span> กำลังตรวจสอบ</span>`;
 
-                try {
-                    // ดึงข้อมูลตรงจาก Browser (ไม่เจาะผ่าน Proxy) 
-                    // mode: 'no-cors' จะแค่จำลองเช็คว่าเปิดลิ้งก์ได้ปกติหรือไม่เท่านั้น
-                    await fetch(url, { 
-                        mode: 'no-cors', 
-                        cache: 'no-store', 
-                        signal: localController.signal 
-                    });
-                    
-                    clearTimeout(timeoutId);
-                    globalSignal.removeEventListener('abort', abortHandler);
-                    return { status: 'reachable', time: Date.now() - startTime };
-                } catch (error) {
-                    clearTimeout(timeoutId);
-                    globalSignal.removeEventListener('abort', abortHandler);
-                    if (globalSignal.aborted) return null;
-                    return { status: 'unreachable', time: Date.now() - startTime };
-                }
-            };
+                const result = await checkSingleUrl(link.url, signal);
+                
+                if (result) {
+                    resultsMap[actualIdx] = result.status;
+                    if (result.status === 'reachable') stats.online++;
+                    else stats.error++;
 
-            const handleCheckAll = async () => {
-                if (isChecking) {
-                    if (abortControllerRef.current) {
-                        abortControllerRef.current.abort();
-                    }
-                    setIsChecking(false);
-                    return;
+                    updateRowResult(actualIdx, result);
+                    updateStatsUI();
                 }
 
-                setIsChecking(true);
-                setProgress(0);
-                setLinks(prev => prev.map(l => ({ ...l, status: 'pending', data: null, rawStatus: null, time: null })));
-                
-                abortControllerRef.current = new AbortController();
-                const signal = abortControllerRef.current.signal;
+                completedCount++;
+                const percent = Math.round((completedCount / linksData.length) * 100);
+                updateProgress(percent);
+            });
 
-                let completed = 0;
-                
-                const batchSize = 5;
-                for (let i = 0; i < links.length; i += batchSize) {
-                    if (signal.aborted) break;
-                    
-                    const batch = links.slice(i, i + batchSize);
-                    const promises = batch.map(async (link, index) => {
-                        const actualIndex = i + index;
-                        
-                        setLinks(prev => {
-                            const next = [...prev];
-                            next[actualIndex].status = 'checking';
-                            return next;
-                        });
+            await Promise.all(promises);
+        }
 
-                        const result = await checkSingleLink(link.url, signal);
-                        
-                        if (result) {
-                            setLinks(prev => {
-                                const next = [...prev];
-                                next[actualIndex] = {
-                                    ...next[actualIndex],
-                                    status: 'done',
-                                    data: analyzeStatus(result.status, result.time),
-                                    rawStatus: result.status,
-                                    time: result.time
-                                };
-                                return next;
-                            });
-                        }
-                        
-                        completed++;
-                        setProgress(Math.round((completed / links.length) * 100));
-                    });
+        if (!signal.aborted) {
+            stopCheckingUI();
+            setTimeout(() => {
+                document.getElementById('progressText').innerText = 'ตรวจสอบเสร็จสิ้น!';
+            }, 500);
+        }
+    }
 
-                    await Promise.all(promises);
-                }
-                
-                setIsChecking(false);
-            };
+    async function checkSingleUrl(url, globalSignal) {
+        const start = Date.now();
+        const localController = new AbortController();
+        const timeoutId = setTimeout(() => localController.abort(), 15000); // 15 sec timeout
+        
+        const onGlobalAbort = () => localController.abort();
+        globalSignal.addEventListener('abort', onGlobalAbort);
 
-            const filteredLinks = links.filter(l => 
-                l.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                l.url.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+        // ใช้ CORS Proxy (api.allorigins.win) เพื่อดึงข้อมูลสถานะ HTTP
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
 
-            const stats = {
-                total: links.length,
-                online: links.filter(l => l.rawStatus === 'reachable').length,
-                error: links.filter(l => l.rawStatus === 'unreachable').length,
-            };
+        try {
+            const response = await fetch(proxyUrl, { signal: localController.signal });
+            const data = await response.json();
+            clearTimeout(timeoutId);
+            globalSignal.removeEventListener('abort', onGlobalAbort);
 
-            const generateReportText = () => {
-                const dateStr = getThaiDate();
-                let statusText = "";
-                
-                // ตรวจสอบว่าเช็คครบหรือยัง และสรุปผล
-                if (stats.online === stats.total) {
-                    statusText = "- ระบบที่สามารถใช้งานได้ : ใช้งานได้ทุกระบบ";
-                } else {
-                    statusText = `- ระบบที่สามารถใช้งานได้ : ใช้งานได้ ${stats.online} ระบบ และพบความผิดปกติ ${stats.error} ระบบ`;
-                }
+            const httpCode = data.status ? data.status.http_code : 0;
+            const timeTaken = Date.now() - start;
 
-                return `รายงานสถานการณ์การทำงานของระบบสารสนเทศสำนักงาน ป.ป.ช.\nวันที่ ${dateStr}\nตรวจสอบระบบสารสนเทศจำนวน ${stats.total} ระบบ\n${statusText}\n\n__________________________\nผู้รายงาน : นางสาวอธิศ์ฐาณณ์  ศรีสวัสดิ์\nวันที่ ${dateStr}`;
-            };
+            // ตีความหมายของ HTTP Code
+            // 200-399 = ปกติ / เด้งไปหน้าอื่น (เช่นล็อกอิน)
+            // 401, 403, 406 = ติด WAF หรือต้องการสิทธิ์ (ถือว่าระบบยังทำงานอยู่)
+            // 500+ หรือ 0 = เซิร์ฟเวอร์มีปัญหา หรือเชื่อมต่อไม่ได้เลย
+            if ((httpCode >= 200 && httpCode < 400) || [401, 403, 406].includes(httpCode)) {
+                return { status: 'reachable', code: httpCode, time: timeTaken };
+            } else {
+                return { status: 'unreachable', code: httpCode, time: timeTaken };
+            }
 
-            const handleCopy = () => {
-                const textarea = document.getElementById('report-text');
-                textarea.select();
-                document.execCommand('copy');
-                setCopySuccess(true);
-                setTimeout(() => setCopySuccess(false), 2000);
-            };
+        } catch (error) {
+            clearTimeout(timeoutId);
+            globalSignal.removeEventListener('abort', onGlobalAbort);
+            if (globalSignal.aborted) return null; // Aborted by user
+            return { status: 'unreachable', code: 0, time: Date.now() - start };
+        }
+    }
 
-            return (
-                <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-                    {/* Header Section */}
-                    <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                                    <i className="fa-solid fa-bolt text-blue-600"></i>
-                                    NACC Link Access Checker
-                                </h1>
-                                <p className="text-gray-500 mt-1 text-sm">
-                                    ระบบตรวจสอบสถานะการเปิดลิ้งก์แอปพลิเคชัน 64 ระบบ (ยิงตรงจากเครือข่ายผู้ใช้ ไม่ผ่าน Proxy)
-                                </p>
-                            </div>
-                            <div className="flex gap-3">
-                                <button 
-                                    onClick={() => setShowReport(true)}
-                                    className="px-6 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 shadow-sm transition-all flex items-center gap-2"
-                                >
-                                    <i className="fa-solid fa-file-lines text-green-600"></i> พิมพ์รายงาน
-                                </button>
-                                <button 
-                                    onClick={handleCheckAll}
-                                    className={`px-6 py-2.5 rounded-lg font-medium text-white shadow-sm transition-all flex items-center gap-2 ${
-                                        isChecking ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
-                                    }`}
-                                >
-                                    {isChecking ? (
-                                        <><i className="fa-solid fa-stop"></i> หยุดตรวจสอบ</>
-                                    ) : (
-                                        <><i className="fa-solid fa-play"></i> ตรวจสอบการเปิดหน้าเว็บทั้งหมด</>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
+    function updateRowResult(idx, result) {
+        const statusTd = document.getElementById(`status-${idx}`);
+        const detailTd = document.getElementById(`detail-${idx}`);
 
-                        {/* Progress Bar */}
-                        {isChecking && (
-                            <div className="mt-6">
-                                <div className="flex justify-between text-sm mb-1 text-gray-600 font-medium">
-                                    <span>กำลังโหลดหน้าเว็บเพื่อตรวจสอบ...</span>
-                                    <span>{progress}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-                                </div>
-                            </div>
-                        )}
+        if (result.status === 'reachable') {
+            statusTd.innerHTML = `<span class="badge badge-green">✅ เปิดได้ปกติ</span>`;
+            let detailMsg = 'ระบบตอบสนองปกติ';
+            if ([401, 403, 406].includes(result.code)) {
+                statusTd.innerHTML = `<span class="badge badge-yellow">✅ ทำงาน (ติด Login)</span>`;
+                detailMsg = `ระบบทำงาน แต่ถูกจำกัดสิทธิ์ (ต้องล็อกอิน)`;
+            } else if (result.code >= 300) {
+                 detailMsg = `ระบบเปลี่ยนเส้นทางอัตโนมัติ`;
+            }
 
-                        {/* Stats Dashboard */}
-                        <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 text-center">
-                                <div className="text-gray-500 text-sm font-medium">ระบบทั้งหมด</div>
-                                <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
-                            </div>
-                            <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
-                                <div className="text-green-600 text-sm font-medium">เปิดได้ (โหลดสำเร็จ)</div>
-                                <div className="text-2xl font-bold text-green-700">{stats.online}</div>
-                            </div>
-                            <div className="bg-red-50 p-4 rounded-lg border border-red-100 text-center">
-                                <div className="text-red-600 text-sm font-medium">เปิดไม่ได้ (Error / ล่ม)</div>
-                                <div className="text-2xl font-bold text-red-700">{stats.error}</div>
-                            </div>
-                        </div>
-                    </div>
+            let detailHtml = `<div class="text-sm">${detailMsg} <span style="color:#aaa;">(Code: ${result.code})</span></div>`;
+            detailHtml += `<div class="text-sm text-gray mt-1">⏱️ ${result.time} ms</div>`;
+            detailTd.innerHTML = detailHtml;
+        } else {
+            statusTd.innerHTML = `<span class="badge badge-red">❌ Error / ล่ม</span>`;
+            let detailHtml = `<div class="text-sm">ไม่สามารถดึงข้อมูลได้ (เซิร์ฟเวอร์อาจล่ม หรือถูกบล็อกแน่นหนา)</div>`;
+            detailHtml += `<div class="text-sm text-gray mt-1">⏱️ ${result.time} ms <span style="color:#aaa;">(Code: ${result.code})</span></div>`;
+            detailTd.innerHTML = detailHtml;
+        }
+    }
 
-                    {/* Table Section */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                            <h2 className="font-semibold text-gray-700">รายการแอปพลิเคชัน ({filteredLinks.length})</h2>
-                            <div className="relative">
-                                <i className="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                                <input 
-                                    type="text" 
-                                    placeholder="ค้นหาระบบ..." 
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                                />
-                            </div>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-gray-50 text-gray-600 uppercase text-xs border-b border-gray-200">
-                                    <tr>
-                                        <th className="px-6 py-4 font-medium">#</th>
-                                        <th className="px-6 py-4 font-medium">ชื่อระบบ (Application)</th>
-                                        <th className="px-6 py-4 font-medium">URL เป้าหมาย</th>
-                                        <th className="px-6 py-4 font-medium text-center">สถานะการเปิดลิ้งก์</th>
-                                        <th className="px-6 py-4 font-medium">ข้อสังเกตเพิ่มเติม</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {filteredLinks.map((link, idx) => (
-                                        <tr key={link.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 text-gray-400">{idx + 1}</td>
-                                            <td className="px-6 py-4 font-medium text-gray-800">{link.name}</td>
-                                            <td className="px-6 py-4">
-                                                <a href={link.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate inline-block max-w-[200px] sm:max-w-xs" title={link.url}>
-                                                    {link.url.replace('https://', '')}
-                                                </a>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {link.status === 'idle' && <span className="text-gray-400">-</span>}
-                                                {link.status === 'pending' && <span className="text-gray-400"><i className="fa-regular fa-clock"></i> รอคิว</span>}
-                                                {link.status === 'checking' && <span className="text-blue-500 font-medium"><i className="fa-solid fa-circle-notch spinner"></i> กำลังตรวจสอบ</span>}
-                                                {link.status === 'done' && link.data && (
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${link.data.badge}`}>
-                                                        <i className={`fa-solid ${link.data.icon}`}></i>
-                                                        {link.data.text}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {link.status === 'done' && link.data ? (
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-gray-600">{link.data.detail}</span>
-                                                        <span className="text-xs text-gray-400"><i className="fa-regular fa-clock"></i> เวลาโหลด: {link.time} ms</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400">-</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {filteredLinks.length === 0 && (
-                                        <tr>
-                                            <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                                                ไม่พบระบบที่ค้นหา
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <div className="mt-4 text-xs text-gray-400 text-center pb-8">
-                        หมายเหตุ: การตรวจสอบนี้ใช้เทคนิค No-CORS ยิงข้อมูลจำลองการเปิดเว็บจากเครื่องของคุณโดยตรง (ไม่ผ่าน Server กลาง) 
-                        หากระบบแสดง Error แสดงว่าเครือข่ายของคุณไม่สามารถโหลดหน้านั้นได้ หรือโดเมนนั้นไม่มีอยู่จริง
-                    </div>
+    function updateStatsUI() {
+        document.getElementById('statOnline').innerText = stats.online;
+        document.getElementById('statError').innerText = stats.error;
+    }
 
-                    {/* Report Modal */}
-                    {showReport && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col">
-                                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                                        <i className="fa-solid fa-clipboard-list text-blue-600"></i>
-                                        รูปแบบข้อความรายงาน
-                                    </h3>
-                                    <button onClick={() => setShowReport(false)} className="text-gray-400 hover:text-red-500 transition-colors">
-                                        <i className="fa-solid fa-xmark text-xl"></i>
-                                    </button>
-                                </div>
-                                <div className="p-6">
-                                    <textarea
-                                        id="report-text"
-                                        readOnly
-                                        className="w-full h-56 p-4 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        value={generateReportText()}
-                                    ></textarea>
-                                </div>
-                                <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-                                    <button
-                                        onClick={handleCopy}
-                                        className={`px-5 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                                            copySuccess 
-                                                ? 'bg-green-100 text-green-700 border border-green-200' 
-                                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200'
-                                        }`}
-                                    >
-                                        <i className={`fa-solid ${copySuccess ? 'fa-check' : 'fa-copy'}`}></i>
-                                        {copySuccess ? 'คัดลอกสำเร็จแล้ว!' : 'คัดลอกข้อความ'}
-                                    </button>
-                                    <button
-                                        onClick={() => setShowReport(false)}
-                                        className="px-5 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                                    >
-                                        ปิดหน้าต่าง
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
+    function updateProgress(percent) {
+        document.getElementById('progressPercent').innerText = `${percent}%`;
+        document.getElementById('progressFill').style.width = `${percent}%`;
+    }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+    function startCheckingUI() {
+        isChecking = true;
+        const btn = document.getElementById('btnCheckAll');
+        btn.className = 'btn-danger';
+        btn.innerHTML = '⏹️ หยุดตรวจสอบ';
+        
+        document.getElementById('progressContainer').style.display = 'block';
+        updateProgress(0);
+        document.getElementById('progressText').innerText = 'กำลังโหลดหน้าเว็บเพื่อตรวจสอบ...';
+    }
+
+    function stopCheckingUI() {
+        isChecking = false;
+        const btn = document.getElementById('btnCheckAll');
+        btn.className = 'btn-primary';
+        btn.innerHTML = '▶️ ตรวจสอบการเปิดหน้าเว็บทั้งหมด';
+    }
+
+    // Modal & Report Functions
+    function getThaiDate() {
+        const date = new Date();
+        const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+        return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear() + 543}`;
+    }
+
+    function generateReportText() {
+        const dateStr = getThaiDate();
+        let statusText = "";
+        
+        if (Object.keys(resultsMap).length === 0) {
+            statusText = "- ระบบที่สามารถใช้งานได้ : (ยังไม่ได้เริ่มตรวจสอบ)";
+        } else if (stats.online === stats.total) {
+            statusText = "- ระบบที่สามารถใช้งานได้ : ใช้งานได้ทุกระบบ";
+        } else {
+            statusText = `- ระบบที่สามารถใช้งานได้ : ใช้งานได้ ${stats.online} ระบบ และพบความผิดปกติ ${stats.error} ระบบ`;
+        }
+
+        return `รายงานสถานการณ์การทำงานของระบบสารสนเทศสำนักงาน ป.ป.ช.\nวันที่ ${dateStr}\nตรวจสอบระบบสารสนเทศจำนวน ${stats.total} ระบบ\n${statusText}\n\n__________________________\nผู้รายงาน : นางสาวอธิศ์ฐาณณ์  ศรีสวัสดิ์\nวันที่ ${dateStr}`;
+    }
+
+    function openModal() {
+        document.getElementById('reportText').value = generateReportText();
+        document.getElementById('reportModal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('reportModal').classList.remove('active');
+        const btnCopy = document.getElementById('btnCopy');
+        btnCopy.className = 'btn-primary';
+        btnCopy.innerHTML = '📄 คัดลอกข้อความ';
+    }
+
+    function copyReport() {
+        const textarea = document.getElementById('reportText');
+        textarea.select();
+        document.execCommand('copy');
+        
+        const btnCopy = document.getElementById('btnCopy');
+        btnCopy.className = 'btn-success';
+        btnCopy.innerHTML = '✅ คัดลอกสำเร็จแล้ว!';
+        
+        setTimeout(() => {
+            btnCopy.className = 'btn-primary';
+            btnCopy.innerHTML = '📄 คัดลอกข้อความ';
+        }, 2000);
+    }
+</script>
+
 </body>
 </html>
